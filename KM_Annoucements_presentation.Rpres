@@ -1,0 +1,59 @@
+Coursera Data Products Class — Shiny Project
+========================================================
+author: 
+date: February 20th, 2015
+font-import: http://fonts.googleapis.com/css?family=Oswald
+font-family: 'Oswald'
+transition: rotate
+
+Summary
+=========================
+
+1. Polish Railway Transporation Authority operating in central province announces all events of service impairment.
+2. The number of events is outrageous, it results in substantial delays or cancellations.
+3. The [Shiny application](http://kmkom.shinyapps.io/KolejeMazowieckie) illustrates the distrinbution of the events in time and route.
+4. Some regularities are present.
+
+Background 
+=========================
+
+* [Koleje Mazowieckie](http://www.mazowieckie.com.pl/en/) (KM) is a local railway based public transportation provider operating in the central province of Poland (Europe).
+* Everyday KM is of the service to thousands of commuters traveling from the suburban area of the capital city of Warsaw.
+* In practice the service is exceptionally unreliable giving us an impression of being the worst in Europe.
+* In theory each event of the service issues is recorded and announced on the KM [website](http://www.mazowieckie.com.pl/en/) via RSS channel.
+* Based on the data from the RSS channel and the website I have created a simple exploratory analysis of the occurred events from September 2013 to February 2015.
+
+Methods
+================================
+
+* The event records from September 2013 to October 2014 were scraped from the KM website, each record contains the date of occurrence and the content (event type, route, event details, etc.)
+* The remaining records till today are collected from the RSS channel via [IFTTT](http://ifttt.com) service and stored in google spreadsheet.
+* The final data set for the shiny app consists of the two sources and it is periodically updated. 
+* Shiny App allows for basic exploration of the announced event in relation to type, occurrence time, route. 
+
+
+Results  — Shiny application
+==========================
+
+* The results are generated automatically and displayed in the three tiers:
+  * Time series (example below) with additionall display of event counts by the day of a week.
+  * Route analysis displaying the percentage of all events for each detected route (sorry only Polish names).
+  * Summary table showing more deatils for each day of a week.
+  
+  
+```{r,message=FALSE,echo=FALSE,fig.width=16,fig.height=4}
+require(ggplot2);require(RCurl)
+url <- getURL("https://dl.dropboxusercontent.com/u/1533349/data.R")
+ggplot(data=dget(file = textConnection(url))) + geom_area(aes(x=date,y=all), fill="grey90", col="grey70")+ geom_line(aes(x=date,y=variable), col="red") + theme_bw() + xlab("Time")+ ylab("# of events")
+```
+
+
+Limitations
+==========================
+
+* The data exploratory is very basic.
+* The full text analysis of the annoucements is not done yet - it involves natural language processing (Polish).
+* Additional variables can be involved in constructing a prediction models. 
+* Bugs.
+* If you have any ideas and comments please don't heistate to contact [me](http://github.com/przemo)
+

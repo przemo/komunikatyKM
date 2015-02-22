@@ -1,101 +1,79 @@
-source("libraries.R")
+## parameters for date range
+ss <<- dget("data.R")
+
+dmin <- min(ss$dates)
+dmax  <- max(ss$dates)
+
+dmin_txt <- format(dmin, "%Y-%m-%d")
+dmax_txt <- format(dmax, "%Y-%m-%d")
+
+
+
 ### aggregations
 
-mondayInWeek <- function(dates){
-  output <- rep(as.Date(NA),length(dates))
-  require(lubridate)
-  giveMonday <- function(d) {
-    if(length(d)>1) stop("Argument has to me of length 1")
-    w  <-  week(d)
-    y  <-  year(d)
-    if (w > 52) w = 52
-    as.Date(paste(1,w,y, sep = "-"),'%u-%W-%Y')
-  }
-  #vapply(dates,giveMonday,as.Date(NA))
-  for (i in 1:length(dates)) output[i] <- giveMonday(dates[i])
-  output
+filterData <- function(df, type="awaria", dfrom=dmin, dto=dmax, ... ){
+  col.nums <- match(type,names(df))[1]
+  a <- df %>%
+    filter(dates >= dfrom & dates <= dto) %>%
+    dplyr::select(date=dates, variable=col.nums)
+  A <<- countDates(a); B <<- countDates(filter(a,variable == TRUE))
+  return(mutate(a, all=1))
 }
 
-## day
-byDay <-  function(df, dfrom="20130903", dto="20141031", agg="awaria", dow=FALSE){
-  col.nums <- match(agg,names(df))[1] # wezmie ttlko jeden element bo inaczej sie wywali
-    output <- df %>%
-      filter(dates >= ymd(dfrom) & dates <= ymd(dto)) %>%
-      dplyr::select(date=dates,v=col.nums) %>%
-      group_by(date) %>%
-      summarise(variable=sum(v), wszystkie=n()) %>%
-      arrange(date)
-  output
-}
-
-# week
-byWeek <- function(df, dfrom="20130903", dto="20141031", agg="awaria"){
-  col.nums <- match(agg,names(df))[1] # wezmie ttlko jeden element bo inaczej sie wywali
-    output <- df %>%
-      filter(dates >= ymd(dfrom) & dates <= ymd(dto)) %>%
-      dplyr::select(dates,v=col.nums) %>%
-      mutate(date= mondayInWeek(dates))%>%
-      group_by(date) %>%
-      summarise(variable=sum(v), wszystkie=n()) %>%
-      arrange(date)
-output
-}
-# month
-
-generateTimeline <- function(df, type="week", ...){
-  if (type=="week") { 
-    byWeek(df, ...) 
+generateTimeline <- function(df, agg="week"){
+  zo <- read.zoo(df)
+  ad <- apply.daily(x=zo,colSums) # daily aggregation
+  
+  if (agg=="week") { 
+    zoa <- apply.weekly(x=zo, colSums) # weekly aggregation
   } else {
-    byDay(df, ...)
+    zoa <- ad
   }
+  
+  zdf <- as.data.frame(zoa)
+  zdf$date <- ymd(row.names(zdf))
+  zdf
 }
   
-dayCounts <- function(df, dfrom="20130903", dto="20141031", agg="awaria") {
-  col.nums <- match(agg,names(df))[1] # wezmie ttlko jeden element bo inaczej sie wywali
-  output <- df %>%
-    filter(dates >= ymd(dfrom) & dates <= ymd(dto)) %>%
-    dplyr::select(dates,v=col.nums) %>%
-    mutate(dow=wday(dates, TRUE)) %>%
+dayCounts <- function(df) {
+  a <- df %>%
+    mutate(dow=wday(date, TRUE)) %>%
     group_by(dow) %>%
-    summarise(variable=sum(v), wszystkie=n()) %>%
+    summarise(variable=sum(variable), wszystkie=n()) %>%
     arrange(dow)
-  output
+  return(a)
 }
 
-getDestCounts <- function(df, dfrom="20130903", dto="20141031", agg="awaria") {
-  col.nums <- match(agg,names(df))[1] # wezmie ttlko jeden element bo inaczej sie wywali
-  o <- df %>%
-    dplyr::select(dates,miasto.from,miasto.to,v=col.nums) %>%
-    filter(dates >= ymd(dfrom) & dates <= ymd(dto) & ( v > 0))# tu nie mam pewnosci
-  tt <- as.data.frame(table(o$miasto.from,o$miasto.to),stringsAsFactors = FALSE) 
+getDestCounts <- function(df, dfrom=dmin, dto=dmax, agg="awaria") {
+  col.nums <- match(agg,names(df))[1] # first argument only
+  output <- df %>%
+    dplyr::select(dates, miasto.from,miasto.to, v=col.nums) %>%
+    filter(dates >= dfrom & dates <= dto & ( v > 0))
+  if (nrow(output) > 0) {
+  tt <- as.data.frame(table(output$miasto.from,output$miasto.to),stringsAsFactors = FALSE) 
   tt <- mutate(tt, pc=Freq/sum(Freq)*100)
   filter(tt, pc>0)
+  } 
+  else { (return(NULL))}
 }
 
-freeDaysCount <- function(df, dfrom="20130903", dto="20141031", agg="awaria") {
-  col.nums <- match(agg,names(df))[1] # wezmie ttlko jeden element bo inaczej sie wywali
-  ddfrom <- ymd(dfrom);ddto <- ymd(dto)
-  days.sequence <- seq(from = ddfrom, to=ddto,by = "1 day")
-  col.nums <- match(agg,names(df))[1] # wezmie ttlko jeden element bo inaczej sie wywali
-  
-  output <- df %>%
-    dplyr::select(dates,v=col.nums) %>%
-    filter(dates >= ymd(dfrom) & dates <= ymd(dto) & ( v > 0)) %>% # tu nie mam pewnosci
-    group_by(dates) %>%
-    summarise(n=n())
-  
-  output2 <- df %>%
-    dplyr::select(dates) %>%
-    filter(dates >= ymd(dfrom) & dates <= ymd(dto)) %>% # tu nie mam pewnosci
-    group_by(dates) %>%
-    summarise(n=n())
-  tot <- length(days.sequence)
-  fd <- tot-length(output$dates)#sum(!(days.sequence %in% output$dates))
-  fd2 <- tot-length(output2$dates)#sum(!(days.sequence %in% output2$dates))
-  
+freeDaysCount <- function(df, dfrom=dmin, dto=dmax) {
+  tot <- difftime(dto,dfrom,units="days")
+  fd <- tot-B
+  fd2 <- tot-A
   c(fd,fd2,tot)
 }
 
 
+noDataPlot <- function(){
+  par(mar = c(0,0,0,0))
+  plot(c(0, .5), c(0, .5), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  
+  text(x = 0.1, y = 0.5, paste("No data available or error occured."), 
+       cex = 1.5, col = "gray50", family="serif", font=2, adj=0.5)
+}
 
 
+countDates <- function(df) {
+  length(apply.daily(x=read.zoo(df),colSums))
+}
