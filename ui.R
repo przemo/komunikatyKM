@@ -30,7 +30,7 @@ shinyUI(fluidPage(
                  plotOutput("dowPlot",height = 450)),
         tabPanel("Route analysis",
                  h5("Annoucements given the route:"),
-                 plotOutput("corrGram", height=500)                 
+                 plotOutput("corrGram", height = 500)                 
                  ),
         tabPanel("Tables",
                  h4("Weekly occurrence:"),

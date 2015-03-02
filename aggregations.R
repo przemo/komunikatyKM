@@ -1,5 +1,6 @@
 ## parameters for date range
-ss <<- dget("data.R")
+url <- "https://raw.githubusercontent.com/przemo/komunikatyKM/master/data.R"
+ss <<- dget(textConnection(getURL(url,.opts=list(ssl.verifypeer=FALSE),.encoding = "UTF-8")))
 
 dmin <- min(ss$dates)
 dmax  <- max(ss$dates)

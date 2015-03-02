@@ -1,5 +1,5 @@
 #librarie
-library(XML)
+library(XML);library(RCurl)
 library(httr)
 library(plyr)
 library(dplyr); library(reshape2)
